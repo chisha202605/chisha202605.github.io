@@ -348,7 +348,7 @@ function deleteDish(id){
   renderDish()
 }
 
-// 【修复版】配餐主逻辑：确保所有记录都被追加存储
+// 配餐主逻辑
 function randomMeal(){
   const mealCount = parseInt(document.getElementById('mealCount').value) || 5;
   const minMeat = parseInt(document.getElementById('minMeat').value) || 0;
@@ -388,7 +388,6 @@ function randomMeal(){
   });
   localStorage.setItem('usedDishIds', JSON.stringify(usedIds));
 
-  // 渲染今日配餐
   renderMealResult(meal);
 
   // 保存配餐历史记录
@@ -399,12 +398,9 @@ function randomMeal(){
     foods: meal.map(d => d.name)
   });
   localStorage.setItem('mealHistory', JSON.stringify(historyList));
-
-  // 渲染配餐历史
   showMealHistory();
 }
 
-// 【修复版】渲染今日配餐：直接渲染到mealResult容器
 function renderMealResult(meal){
   currentMealData = meal;
   let html = '<div style="padding:10px;"><h3>今日配餐</h3>';
@@ -431,10 +427,8 @@ function renderMealResult(meal){
   document.getElementById('mealResult').innerHTML = html;
 }
 
-// 【修复版】渲染配餐历史：一次性渲染所有记录，不重复创建元素
 function showMealHistory(){
   let historyList = JSON.parse(localStorage.getItem('mealHistory'));
-  // 先清除旧的历史记录容器，避免重复渲染
   let oldBlock = document.getElementById('mealHistoryBlock');
   if(oldBlock) oldBlock.remove();
 
@@ -550,17 +544,30 @@ function manualMeal() {
   document.getElementById('mealResult').innerHTML = html
 }
 
+// 【修复版】手动选菜配餐：新增历史记录保存逻辑
 function confirmManualMeal() {
   const checkboxes = document.querySelectorAll('#manual-dish-list input:checked')
   const selectedIds = Array.from(checkboxes).map(cb => cb.value)
   const selectedDishes = JSON.parse(localStorage.getItem('dishes')).filter(d => selectedIds.includes(d.id))
-  renderMealResult(selectedDishes)
+  if(selectedDishes.length === 0) return alert('请至少选择一道菜品')
+
+  // 渲染今日配餐
+  renderMealResult(selectedDishes);
+
+  // 保存配餐历史记录
+  let historyList = JSON.parse(localStorage.getItem('mealHistory'));
+  historyList.unshift({
+    id: Date.now(),
+    time: new Date().toLocaleString(),
+    foods: selectedDishes.map(d => d.name)
+  });
+  localStorage.setItem('mealHistory', JSON.stringify(historyList));
+  showMealHistory();
 }
 
 // 回收站
 function showRecycle(){
-  const dishesJSON = JSON.parse(localStorage.getItem('dishes'));
-  const dishes = dishesJSON.filter(d=>d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
+  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
   const now = Date.now();
   const expireDays = 30;
   let html = ''
@@ -585,7 +592,6 @@ function restoreDish(id){
   showRecycle()
 }
 
-// 回收站彻底删除
 function delPermanent(dishId){
   if(!confirm('永久删除后无法恢复，确定继续？')) return;
   let dishArr = JSON.parse(localStorage.getItem('dishes'));
@@ -622,7 +628,7 @@ function importData(){
       alert('导入成功')
       showPage('home')
     }
-    fr.readAsText(e.target.files[0])
+    fr.readAsText(e.target.result)
   }
   input.click()
 }
