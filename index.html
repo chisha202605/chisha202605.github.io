@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>家庭共享菜谱</title>
   <link rel="stylesheet" href="style.css"/>
+  <style>
+    .ingredient-row { display: flex; gap: 10px; margin-bottom: 8px; }
+    .ingredient-row input { flex: 1; }
+    .video-row { display: flex; gap: 10px; margin-bottom: 8px; }
+    .btn-danger { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+    .btn-small { padding: 4px 8px; font-size: 12px; }
+    .filter-section { margin: 10px 0; display: flex; gap: 10px; align-items: center; }
+    .filter-section input { flex: 1; }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -20,11 +29,11 @@
 
     <!-- 首页 -->
     <div id="page-home" class="page">
-      <div class="search"><input id="searchInput" placeholder="搜索菜名/食材" oninput="renderDish()"/></div>
-      <div class="category-nav" id="categoryNav"></div>
-      <div style="margin:10px 0;">
+      <div class="filter-section">
+        <input id="searchKeyword" placeholder="搜索菜名/食材" oninput="renderDish()"/>
         <button onclick="showPage('categoryManage')">分类管理</button>
       </div>
+      <div class="category-nav" id="categoryNav"></div>
       <div class="dish-list" id="dishList"></div>
     </div>
 
@@ -56,9 +65,29 @@
       <div class="form">
         <input id="dishName" placeholder="菜名"/>
         <select id="dishCategory"></select>
-        <textarea id="dishIng" placeholder="食材：名称+用量，换行分隔"></textarea>
-        <textarea id="dishStep" placeholder="详细做法"></textarea>
-        <textarea id="dishVideo" placeholder="视频链接，多个链接请用回车换行分隔"></textarea>
+
+        <h4>食材</h4>
+        <div id="ingredientList">
+          <div class="ingredient-row">
+            <input type="text" placeholder="食材名称" class="ing-name">
+            <input type="text" placeholder="用量" class="ing-amount">
+            <button type="button" class="btn-danger btn-small" onclick="removeIngredient(this)">删除</button>
+          </div>
+        </div>
+        <button type="button" onclick="addIngredientRow()">+ 新增食材</button>
+
+        <h4>详细做法</h4>
+        <textarea id="dishStep" placeholder="请按步骤输入做法，系统会自动生成编号列表"></textarea>
+
+        <h4>视频链接</h4>
+        <div id="videoList">
+          <div class="video-row">
+            <input type="text" placeholder="视频链接" class="video-url">
+            <button type="button" class="btn-danger btn-small" onclick="removeVideo(this)">删除</button>
+          </div>
+        </div>
+        <button type="button" onclick="addVideoRow()">+ 新增视频链接</button>
+
         <input type="hidden" id="editDishId">
         <button onclick="saveDish()">保存菜品</button>
       </div>
@@ -67,8 +96,26 @@
     <!-- 配餐页 -->
     <div id="page-meal" class="page hidden">
       <h2>配餐中心</h2>
-      <button onclick="randomMeal()">随机4菜1汤（3天不重复，含荤菜）</button>
-      <button onclick="manualMeal()">手动选菜配餐</button>
+      <div style="margin:10px 0; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div>
+          <label>生成数量：</label>
+          <input type="number" id="mealCount" value="5" min="1" style="width:60px;">
+        </div>
+        <div>
+          <label>荤菜最少：</label>
+          <input type="number" id="minMeat" value="1" min="0" style="width:60px;">
+        </div>
+        <div>
+          <label>汤最少：</label>
+          <input type="number" id="minSoup" value="1" min="0" style="width:60px;">
+        </div>
+        <div>
+          <label>几天内不重复：</label>
+          <input type="number" id="noRepeatDays" value="3" min="1" style="width:60px;">
+        </div>
+        <button onclick="randomMeal()">随机配餐</button>
+        <button onclick="manualMeal()">手动选菜配餐</button>
+      </div>
       <div id="mealResult" class="meal-result"></div>
     </div>
 
