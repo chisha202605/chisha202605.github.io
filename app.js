@@ -18,22 +18,6 @@ function initData(){
 }
 initData()
 
-// 绑定首页搜索框实时筛选
-document.addEventListener('DOMContentLoaded', function(){
-  const searchInput = document.getElementById('searchKeyword');
-  if(searchInput){
-    searchInput.addEventListener('input', function(){
-      renderDish();
-    });
-  }
-  const changeSearch = document.getElementById('changeDishSearch');
-  if(changeSearch){
-    changeSearch.addEventListener('input', function(){
-      renderChangeDishList(this.value);
-    });
-  }
-});
-
 function showPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'))
   document.getElementById('page-'+name).classList.remove('hidden')
@@ -108,7 +92,7 @@ function delCategory(catId){
   alert('分类已删除')
 }
 
-// 首页菜品列表（修复筛选+序号+同行按钮）
+// 首页菜品列表（修复筛选：菜名+食材双维度）
 function renderDish(){
   const keyword = document.getElementById('searchKeyword').value.trim().toLowerCase()
   const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete)
@@ -116,7 +100,6 @@ function renderDish(){
   const list = document.getElementById('dishList')
   list.innerHTML = ''
 
-  // 多条件筛选：关键词（菜名/食材）+ 分类
   const filterList = dishes.filter(d=>{
     const matchKeyword = !keyword || 
       d.name.toLowerCase().includes(keyword) || 
@@ -142,7 +125,7 @@ function renderDish(){
   })
 }
 
-// 菜品详情页（空行分隔+正常显示食材）
+// 菜品详情页
 function viewDishDetail(id){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
   const d = dishes.find(x=>x.id===id)
@@ -190,7 +173,7 @@ function viewDishDetail(id){
   showPage('detail')
 }
 
-// 编辑菜品
+// 编辑菜品（修复：确保editDishId被正确设置）
 function editDish(id){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
   const d = dishes.find(x=>x.id===id)
@@ -234,6 +217,7 @@ function editDish(id){
     addVideoRow();
   }
 
+  // 强制设置编辑ID，确保保存时走更新逻辑
   document.getElementById('editDishId').value = id
   showPage('addDish')
 }
@@ -299,14 +283,16 @@ function removeVideo(btn){
   }
 }
 
+// 保存菜品（修复：优先更新原菜品，不生成新菜）
 function saveDish(){
   const name = document.getElementById('dishName').value.trim()
   const cateId = document.getElementById('dishCategory').value
-  const editId = document.getElementById('editDishId').value
+  const editId = document.getElementById('editDishId').value.trim()
 
   if(!name) return alert('请输入菜名')
   if(!confirm('确认保存该菜品？')) return;
 
+  // 收集食材、做法、视频
   const ingredients = [];
   document.querySelectorAll('#ingredientList .ingredient-row').forEach(row => {
     const name = row.querySelector('.ing-name').value.trim();
@@ -324,15 +310,21 @@ function saveDish(){
   });
 
   const dishes = JSON.parse(localStorage.getItem('dishes'))
+
   if(editId){
-    const idx = dishes.findIndex(d=>d.id===editId)
-    dishes[idx] = {...dishes[idx], name, cateId, ingredients, steps, videos}
+    // 编辑模式：更新原菜品
+    const idx = dishes.findIndex(d=>d.id === editId)
+    if(idx !== -1){
+      dishes[idx] = {...dishes[idx], name, cateId, ingredients, steps, videos}
+    }
   }else{
+    // 新增模式：添加新菜品
     dishes.push({
       id:Date.now().toString(),name,cateId,ingredients,steps,videos,
       isDelete:false,deleteTime:null
     })
   }
+
   localStorage.setItem('dishes',JSON.stringify(dishes))
   alert('保存成功')
   showPage('home')
@@ -434,7 +426,7 @@ function toggleMealIngredient(checkbox){
   }
 }
 
-// 更换菜品：弹窗+搜索（菜名/食材）【修复好的】
+// 更换菜品：弹窗+搜索
 function openChangeModal(index){
   currentChangeMealIndex = index;
   document.getElementById('changeDishModal').style.display = 'block';
@@ -447,7 +439,6 @@ function closeChangeModal(){
   currentChangeMealIndex = null;
 }
 
-// 更换菜品列表筛选（菜名/食材）
 function renderChangeDishList(keyword){
   keyword = keyword.toLowerCase().trim();
   const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete);
