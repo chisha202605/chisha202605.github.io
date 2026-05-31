@@ -9,16 +9,23 @@ let currentViewDishId = null;
 let currentFilterCategory = null;
 let currentMealData = [];
 let currentChangeMealIndex = null;
+// 全局变量存储当前编辑ID，不再只依赖隐藏input
+let globalEditId = "";
 
 function initData(){
   if(!localStorage.getItem('categories')) localStorage.setItem('categories',JSON.stringify(defaultCategories))
   if(!localStorage.getItem('dishes')) localStorage.setItem('dishes','[]')
   if(!localStorage.getItem('mealHistory')) localStorage.setItem('mealHistory','[]')
   if(!localStorage.getItem('usedDishIds')) localStorage.setItem('usedDishIds','[]')
+  // 初始化回收站永久删除标记字段
+  let dishes = JSON.parse(localStorage.getItem('dishes'));
+  dishes.forEach(d=>{
+    if(d.permanentDelete === undefined) d.permanentDelete = false;
+  })
+  localStorage.setItem('dishes', JSON.stringify(dishes));
 }
 initData()
 
-// 【已修复】页面跳转逻辑，不再误清空编辑ID
 function showPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'))
   document.getElementById('page-'+name).classList.remove('hidden')
@@ -30,8 +37,14 @@ function showPage(name){
   if(name === 'categoryManage'){
     renderCategoryManage();
   }
-  // 仅主动点击顶部【新增菜品】才重置表单，编辑入口不重置
-  if(name === 'addDish' && !document.getElementById('editDishId').value){
+  if(name === 'meal'){
+    renderMealHistory();
+  }
+  if(name === 'mine'){
+    showRecycle();
+  }
+  // 只有手动点【新增菜品】才清空编辑标记
+  if(name === 'addDish' && globalEditId === ""){
     resetAddDishForm();
   }
 }
@@ -94,10 +107,10 @@ function delCategory(catId){
   alert('分类已删除')
 }
 
-// 首页菜品列表（筛选正常）
+// 首页菜品列表
 function renderDish(){
   const keyword = document.getElementById('searchKeyword').value.trim().toLowerCase()
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete)
+  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && !d.permanentDelete)
   const cats = JSON.parse(localStorage.getItem('categories'))
   const list = document.getElementById('dishList')
   list.innerHTML = ''
@@ -175,15 +188,18 @@ function viewDishDetail(id){
   showPage('detail')
 }
 
-// 编辑菜品核心逻辑
+// 编辑菜品入口（列表+详情共用）
 function editDish(id){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
   const d = dishes.find(x=>x.id===id)
   if(!d) return;
 
-  document.getElementById('addEditTitle').innerText = '编辑菜品'
+  // 全局变量锁定编辑ID（核心）
+  globalEditId = id;
+  // 同步到隐藏input（兜底）
   document.getElementById('editDishId').value = id;
 
+  document.getElementById('addEditTitle').innerText = '编辑菜品'
   document.getElementById('dishName').value = d.name
   document.getElementById('dishCategory').value = d.cateId || ''
   
@@ -223,22 +239,22 @@ function editDish(id){
   }
 
   showPage('addDish')
-  // 兜底二次赋值ID
-  document.getElementById('editDishId').value = id;
 }
 
-// 【已修复】详情页编辑入口
+// 详情页编辑按钮
 function editCurrentDish(){
   if(!currentViewDishId) return;
   editDish(currentViewDishId);
 }
 
+// 重置表单（仅新增时调用）
 function resetAddDishForm(){
   document.getElementById('addEditTitle').innerText = '新增菜品';
   document.getElementById('dishName').value = '';
   document.getElementById('dishCategory').value = '';
   document.getElementById('dishStep').value = '';
   document.getElementById('editDishId').value = '';
+  globalEditId = ""; // 清空全局编辑ID
   
   const ingList = document.getElementById('ingredientList');
   ingList.innerHTML = '';
@@ -290,11 +306,12 @@ function removeVideo(btn){
   }
 }
 
-// 保存菜品逻辑
+// 保存逻辑：优先用全局ID，双重校验
 function saveDish(){
   const name = document.getElementById('dishName').value.trim()
   const cateId = document.getElementById('dishCategory').value
-  const editId = document.getElementById('editDishId').value.trim()
+  // 优先取全局ID，再取隐藏input，双重兜底
+  const editId = globalEditId || document.getElementById('editDishId').value.trim()
 
   if(!name) return alert('请输入菜名')
   if(!confirm('确认保存该菜品？')) return;
@@ -318,18 +335,23 @@ function saveDish(){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
 
   if(editId){
+    // 编辑模式：更新原菜品
     const idx = dishes.findIndex(d=>d.id === editId)
     if(idx !== -1){
       dishes[idx] = {...dishes[idx], name, cateId, ingredients, steps, videos}
     }
   }else{
+    // 新增模式
     dishes.push({
       id:Date.now().toString(),name,cateId,ingredients,steps,videos,
-      isDelete:false,deleteTime:null
+      isDelete:false,deleteTime:null,permanentDelete:false
     })
   }
 
   localStorage.setItem('dishes',JSON.stringify(dishes))
+  // 保存后清空编辑标记
+  globalEditId = "";
+  document.getElementById('editDishId').value = "";
   alert('保存成功')
   showPage('home')
 }
@@ -351,7 +373,7 @@ function randomMeal(){
   const minSoup = parseInt(document.getElementById('minSoup').value) || 0;
   const noRepeatDays = parseInt(document.getElementById('noRepeatDays').value) || 3;
 
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete)
+  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && !d.permanentDelete)
   const usedIds = JSON.parse(localStorage.getItem('usedDishIds'))
   const validUsed = usedIds.filter(x=>Date.now() - x.time < noRepeatDays * 24 * 60 * 60 * 1000).map(x=>x.id)
 
@@ -384,7 +406,17 @@ function randomMeal(){
   });
   localStorage.setItem('usedDishIds', JSON.stringify(usedIds));
 
+  // ========= 新增：保存本次配餐记录 =========
+  const mealHistory = JSON.parse(localStorage.getItem('mealHistory'));
+  mealHistory.unshift({
+    recordId: Date.now().toString(),
+    createTime: new Date().toLocaleString(),
+    dishList: meal.map(item => ({id: item.id, name: item.name}))
+  });
+  localStorage.setItem('mealHistory', JSON.stringify(mealHistory));
+
   renderMealResult(meal);
+  renderMealHistory();
 }
 
 function renderMealResult(meal){
@@ -411,6 +443,44 @@ function renderMealResult(meal){
   });
   html += '</div>';
   document.getElementById('mealResult').innerHTML = html;
+}
+
+// ========= 新增：渲染配餐历史记录 =========
+function renderMealHistory(){
+  const history = JSON.parse(localStorage.getItem('mealHistory'));
+  let html = '<div style="margin-top:20px;border-top:1px solid #eee;padding-top:15px;"><h3>配餐历史记录</h3>';
+  if(history.length === 0){
+    html += '<p>暂无配餐记录</p>';
+  }else{
+    history.forEach(item => {
+      let dishNames = item.dishList.map(d=>d.name).join('、');
+      html += `
+        <div style="padding:8px 0;border-bottom:1px solid #eee;">
+          <div>时间：${item.createTime}</div>
+          <div>菜品：${dishNames}</div>
+          <button class="btn-danger btn-small" onclick="delMealRecord('${item.recordId}')">删除本条记录</button>
+        </div>
+      `;
+    })
+  }
+  html += '</div>';
+  // 追加到配餐页面底部
+  const mealPage = document.getElementById('page-meal');
+  let oldHistory = mealPage.querySelector('.meal-history-block');
+  if(oldHistory) oldHistory.remove();
+  let div = document.createElement('div');
+  div.className = 'meal-history-block';
+  div.innerHTML = html;
+  mealPage.appendChild(div);
+}
+
+// ========= 新增：删除单条配餐记录 =========
+function delMealRecord(rid){
+  if(!confirm('确定删除该条配餐记录？')) return;
+  let history = JSON.parse(localStorage.getItem('mealHistory'));
+  history = history.filter(item => item.recordId !== rid);
+  localStorage.setItem('mealHistory', JSON.stringify(history));
+  renderMealHistory();
 }
 
 function viewMealDishDetail(idx){
@@ -443,7 +513,7 @@ function closeChangeModal(){
 
 function renderChangeDishList(keyword){
   keyword = keyword.toLowerCase().trim();
-  const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete);
+  const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && !d.permanentDelete);
   const list = document.getElementById('changeDishList');
   list.innerHTML = '';
 
@@ -464,7 +534,7 @@ function renderChangeDishList(keyword){
 }
 
 function selectChangeDish(dishId){
-  const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete);
+  const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && !d.permanentDelete);
   const target = allDishes.find(d=>d.id === dishId);
   if(!target) return;
   if(currentChangeMealIndex !== null){
@@ -475,7 +545,7 @@ function selectChangeDish(dishId){
 }
 
 function manualMeal() {
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d => !d.isDelete)
+  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d => !d.isDelete && !d.permanentDelete)
   let html = `
     <div style="padding:10px;">
       <h3>自由选菜（无限制）</h3>
@@ -508,7 +578,7 @@ function confirmManualMeal() {
 
 // 回收站
 function showRecycle(){
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>d.isDelete)
+  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>d.isDelete && !d.permanentDelete)
   const now = Date.now();
   const expireDays = 30;
   let html = ''
@@ -518,11 +588,13 @@ function showRecycle(){
     html += `<div class="dish-item">
       <span>${d.name}（删除${Math.floor(dayDiff)}天）</span>
       <button onclick="restoreDish('${d.id}')" ${!canRestore ? 'disabled' : ''} class="btn-small">还原</button>
+      <button onclick="permanentDeleteDish('${d.id}')" class="btn-danger btn-small">彻底删除</button>
     </div>`
   })
   document.getElementById('recycleList').innerHTML = html
 }
 
+// 原有还原功能
 function restoreDish(id){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
   const d = dishes.find(x=>x.id===id)
@@ -530,6 +602,16 @@ function restoreDish(id){
   d.deleteTime = null
   localStorage.setItem('dishes',JSON.stringify(dishes))
   showRecycle()
+}
+
+// ========= 新增：回收站彻底删除菜品 =========
+function permanentDeleteDish(id){
+  if(!confirm('确定永久删除该菜品？删除后无法恢复！')) return;
+  const dishes = JSON.parse(localStorage.getItem('dishes'));
+  const target = dishes.find(d=>d.id === id);
+  if(target) target.permanentDelete = true;
+  localStorage.setItem('dishes', JSON.stringify(dishes));
+  showRecycle();
 }
 
 // 备份导入
@@ -555,6 +637,7 @@ function importData(){
       const data = JSON.parse(ev.target.result)
       localStorage.setItem('categories',JSON.stringify(data.categories))
       localStorage.setItem('dishes',JSON.stringify(data.dishes))
+      localStorage.setItem('mealHistory', JSON.stringify(data.mealHistory || []))
       alert('导入成功')
       showPage('home')
     }
