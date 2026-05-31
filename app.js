@@ -100,7 +100,7 @@ function delCategory(catId){
 
 function renderDish(){
   const keyword = document.getElementById('searchKeyword').value.trim().toLowerCase()
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && !d.permanentDelete)
+  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
   const cats = JSON.parse(localStorage.getItem('categories'))
   const list = document.getElementById('dishList')
   list.innerHTML = ''
@@ -345,14 +345,15 @@ function deleteDish(id){
   renderDish()
 }
 
-// 配餐主逻辑
+// 配餐主逻辑（已修复过滤条件）
 function randomMeal(){
   const mealCount = parseInt(document.getElementById('mealCount').value) || 5;
   const minMeat = parseInt(document.getElementById('minMeat').value) || 0;
   const minSoup = parseInt(document.getElementById('minSoup').value) || 0;
   const noRepeatDays = parseInt(document.getElementById('noRepeatDays').value) || 3;
 
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && !d.permanentDelete)
+  // 修复点：兼容没有 permanentDelete 字段的旧数据
+  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
   const usedIds = JSON.parse(localStorage.getItem('usedDishIds'))
   const validUsed = usedIds.filter(x=>Date.now() - x.time < noRepeatDays * 24 * 60 * 60 * 1000).map(x=>x.id)
 
@@ -387,7 +388,7 @@ function randomMeal(){
 
   renderMealResult(meal);
 
-  // 新增：保存配餐历史记录
+  // 保存配餐历史记录
   let historyList = JSON.parse(localStorage.getItem('mealHistory'));
   historyList.unshift({
     id: Date.now(),
@@ -424,7 +425,7 @@ function renderMealResult(meal){
   document.getElementById('mealResult').innerHTML = html;
 }
 
-// 新增：渲染配餐历史
+// 渲染配餐历史
 function showMealHistory(){
   let historyList = JSON.parse(localStorage.getItem('mealHistory'));
   let html = '<div style="margin-top:20px;"><h4>配餐历史</h4>';
@@ -445,7 +446,7 @@ function showMealHistory(){
   mealBox.insertAdjacentHTML('beforeend', html);
 }
 
-// 新增：删除单条配餐历史
+// 删除单条配餐历史
 function delMealHistory(recId){
   if(!confirm('确定删除该条记录？')) return;
   let historyList = JSON.parse(localStorage.getItem('mealHistory'));
@@ -484,7 +485,7 @@ function closeChangeModal(){
 
 function renderChangeDishList(keyword){
   keyword = keyword.toLowerCase().trim();
-  const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && !d.permanentDelete);
+  const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete));
   const list = document.getElementById('changeDishList');
   list.innerHTML = '';
 
@@ -505,7 +506,7 @@ function renderChangeDishList(keyword){
 }
 
 function selectChangeDish(dishId){
-  const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && !d.permanentDelete);
+  const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete));
   const target = allDishes.find(d=>d.id === dishId);
   if(!target) return;
   if(currentChangeMealIndex !== null){
@@ -516,7 +517,7 @@ function selectChangeDish(dishId){
 }
 
 function manualMeal() {
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d => !d.isDelete && !d.permanentDelete)
+  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d => !d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
   let html = `
     <div style="padding:10px;">
       <h3>自由选菜（无限制）</h3>
@@ -549,7 +550,7 @@ function confirmManualMeal() {
 
 // 回收站
 function showRecycle(){
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>d.isDelete && !d.permanentDelete)
+  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
   const now = Date.now();
   const expireDays = 30;
   let html = ''
@@ -574,7 +575,7 @@ function restoreDish(id){
   showRecycle()
 }
 
-// 新增：回收站彻底删除
+// 回收站彻底删除
 function delPermanent(dishId){
   if(!confirm('永久删除后无法恢复，确定继续？')) return;
   let dishArr = JSON.parse(localStorage.getItem('dishes'));
