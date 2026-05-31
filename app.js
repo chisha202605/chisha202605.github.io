@@ -18,6 +18,7 @@ function initData(){
 }
 initData()
 
+// 【已修复】页面跳转逻辑，不再误清空编辑ID
 function showPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'))
   document.getElementById('page-'+name).classList.remove('hidden')
@@ -29,7 +30,8 @@ function showPage(name){
   if(name === 'categoryManage'){
     renderCategoryManage();
   }
-  if(name === 'addDish'){
+  // 仅主动点击顶部【新增菜品】才重置表单，编辑入口不重置
+  if(name === 'addDish' && !document.getElementById('editDishId').value){
     resetAddDishForm();
   }
 }
@@ -173,21 +175,18 @@ function viewDishDetail(id){
   showPage('detail')
 }
 
-// ========== 【核心修改区】编辑菜品逻辑 ==========
+// 编辑菜品核心逻辑
 function editDish(id){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
   const d = dishes.find(x=>x.id===id)
   if(!d) return;
 
-  // 1. 强制标记为编辑模式
   document.getElementById('addEditTitle').innerText = '编辑菜品'
-  document.getElementById('editDishId').value = id; // 确保ID被写入
+  document.getElementById('editDishId').value = id;
 
-  // 2. 填充基础信息
   document.getElementById('dishName').value = d.name
   document.getElementById('dishCategory').value = d.cateId || ''
   
-  // 3. 填充食材
   const ingList = document.getElementById('ingredientList');
   ingList.innerHTML = '';
   if(d.ingredients && d.ingredients.length > 0){
@@ -205,10 +204,8 @@ function editDish(id){
     addIngredientRow();
   }
 
-  // 4. 填充做法
   document.getElementById('dishStep').value = d.steps ? d.steps.join('\n') : '';
 
-  // 5. 填充视频
   const videoList = document.getElementById('videoList');
   videoList.innerHTML = '';
   if(d.videos && d.videos.length > 0){
@@ -226,10 +223,14 @@ function editDish(id){
   }
 
   showPage('addDish')
+  // 兜底二次赋值ID
+  document.getElementById('editDishId').value = id;
 }
 
+// 【已修复】详情页编辑入口
 function editCurrentDish(){
-  if(currentViewDishId) editDish(currentViewDishId)
+  if(!currentViewDishId) return;
+  editDish(currentViewDishId);
 }
 
 function resetAddDishForm(){
@@ -289,7 +290,7 @@ function removeVideo(btn){
   }
 }
 
-// ========== 【核心修改区】保存菜品逻辑 ==========
+// 保存菜品逻辑
 function saveDish(){
   const name = document.getElementById('dishName').value.trim()
   const cateId = document.getElementById('dishCategory').value
@@ -298,7 +299,6 @@ function saveDish(){
   if(!name) return alert('请输入菜名')
   if(!confirm('确认保存该菜品？')) return;
 
-  // 收集食材、做法、视频
   const ingredients = [];
   document.querySelectorAll('#ingredientList .ingredient-row').forEach(row => {
     const name = row.querySelector('.ing-name').value.trim();
@@ -318,13 +318,11 @@ function saveDish(){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
 
   if(editId){
-    // 编辑模式：更新原菜品
     const idx = dishes.findIndex(d=>d.id === editId)
     if(idx !== -1){
       dishes[idx] = {...dishes[idx], name, cateId, ingredients, steps, videos}
     }
   }else{
-    // 新增模式：添加新菜品
     dishes.push({
       id:Date.now().toString(),name,cateId,ingredients,steps,videos,
       isDelete:false,deleteTime:null
@@ -346,7 +344,7 @@ function deleteDish(id){
   renderDish()
 }
 
-// 配餐（未修改）
+// 配餐功能
 function randomMeal(){
   const mealCount = parseInt(document.getElementById('mealCount').value) || 5;
   const minMeat = parseInt(document.getElementById('minMeat').value) || 0;
@@ -508,7 +506,7 @@ function confirmManualMeal() {
   renderMealResult(selectedDishes)
 }
 
-// 回收站（未修改）
+// 回收站
 function showRecycle(){
   const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>d.isDelete)
   const now = Date.now();
@@ -534,7 +532,7 @@ function restoreDish(id){
   showRecycle()
 }
 
-// 备份导入（未修改）
+// 备份导入
 function exportData(){
   const data = JSON.stringify({
     categories:JSON.parse(localStorage.getItem('categories')),
