@@ -8,6 +8,7 @@ const defaultCategories = [
 let currentViewDishId = null;
 let currentFilterCategory = null;
 let currentMealData = [];
+let currentChangeMealIndex = null;
 
 function initData(){
   if(!localStorage.getItem('categories')) localStorage.setItem('categories',JSON.stringify(defaultCategories))
@@ -33,7 +34,7 @@ function showPage(name){
   }
 }
 
-// --- 分类管理 ---
+// 分类管理
 function renderCategory(){
   const cats = JSON.parse(localStorage.getItem('categories'))
   const nav = document.getElementById('categoryNav')
@@ -56,7 +57,7 @@ function renderCategoryManage(){
   let html = ''
   cats.forEach(c=>{
     html += `
-      <div class="dish-item" style="display:flex;justify-content:space-between;align-items:center;">
+      <div class="dish-item">
         <span>${c.name}</span>
         <button onclick="delCategory(${c.id})" class="btn-danger btn-small">删除</button>
       </div>
@@ -91,25 +92,30 @@ function delCategory(catId){
   alert('分类已删除')
 }
 
-// --- 菜品列表 ---
+// 首页菜品列表 + 序号 + 同行按钮 + 筛选修复
 function renderDish(){
   const keyword = document.getElementById('searchKeyword').value.trim().toLowerCase()
   const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete)
   const cats = JSON.parse(localStorage.getItem('categories'))
   const list = document.getElementById('dishList')
   list.innerHTML = ''
-  dishes.filter(d=>{
-    const matchKeyword = !keyword || d.name.toLowerCase().includes(keyword) || 
+
+  const filterList = dishes.filter(d=>{
+    const matchKeyword = !keyword || 
+                         d.name.toLowerCase().includes(keyword) || 
                          (d.ingredients && d.ingredients.some(ing => ing.name.toLowerCase().includes(keyword)))
     const matchCategory = currentFilterCategory === null || d.cateId == currentFilterCategory
     return matchKeyword && matchCategory
-  }).forEach(d=>{
+  })
+
+  filterList.forEach((d, idx)=>{
     const catName = cats.find(c=>c.id==d.cateId)?.name||'未知分类'
     list.innerHTML += `
       <div class="dish-item">
         <div>
+          <span>${idx+1}. </span>
           <b style="cursor:pointer;color:#07c160;" onclick="viewDishDetail('${d.id}')">${d.name}</b>
-          <span>分类：${catName}</span>
+          <span>【${catName}】</span>
         </div>
         <div>
           <button onclick="editDish('${d.id}')" class="btn-small">编辑</button>
@@ -119,7 +125,7 @@ function renderDish(){
   })
 }
 
-// --- 菜品详情 ---
+// 菜品详情页（空行分隔排版 + 正常读取食材）
 function viewDishDetail(id){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
   const d = dishes.find(x=>x.id===id)
@@ -167,7 +173,7 @@ function viewDishDetail(id){
   showPage('detail')
 }
 
-// --- 编辑菜品 ---
+// 编辑菜品
 function editDish(id){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
   const d = dishes.find(x=>x.id===id)
@@ -176,7 +182,6 @@ function editDish(id){
   document.getElementById('dishName').value = d.name
   document.getElementById('dishCategory').value = d.cateId || ''
   
-  // 填充食材
   const ingList = document.getElementById('ingredientList');
   ingList.innerHTML = '';
   if(d.ingredients && d.ingredients.length > 0){
@@ -194,10 +199,8 @@ function editDish(id){
     addIngredientRow();
   }
 
-  // 填充做法
   document.getElementById('dishStep').value = d.steps ? d.steps.join('\n') : '';
 
-  // 填充视频
   const videoList = document.getElementById('videoList');
   videoList.innerHTML = '';
   if(d.videos && d.videos.length > 0){
@@ -287,7 +290,6 @@ function saveDish(){
   if(!name) return alert('请输入菜名')
   if(!confirm('确认保存该菜品？')) return;
 
-  // 收集食材
   const ingredients = [];
   document.querySelectorAll('#ingredientList .ingredient-row').forEach(row => {
     const name = row.querySelector('.ing-name').value.trim();
@@ -295,11 +297,9 @@ function saveDish(){
     if(name) ingredients.push({name, amount});
   });
 
-  // 收集做法
   const stepText = document.getElementById('dishStep').value.trim();
   const steps = stepText ? stepText.split('\n').filter(s => s.trim()) : [];
 
-  // 收集视频
   const videos = [];
   document.querySelectorAll('#videoList .video-row .video-url').forEach(input => {
     const url = input.value.trim();
@@ -331,7 +331,7 @@ function deleteDish(id){
   renderDish()
 }
 
-// --- 配餐 ---
+// 配餐
 function randomMeal(){
   const mealCount = parseInt(document.getElementById('mealCount').value) || 5;
   const minMeat = parseInt(document.getElementById('minMeat').value) || 0;
@@ -351,17 +351,14 @@ function randomMeal(){
   }
 
   const meal = [];
-  // 先选够荤菜
   for(let i=0; i<minMeat; i++){
     const idx = Math.floor(Math.random() * meatDishes.length);
     meal.push(meatDishes.splice(idx, 1)[0]);
   }
-  // 再选够汤
   for(let i=0; i<minSoup; i++){
     const idx = Math.floor(Math.random() * soupDishes.length);
     meal.push(soupDishes.splice(idx, 1)[0]);
   }
-  // 剩下的从其他里选
   const remaining = mealCount - meal.length;
   const pool = [...meatDishes, ...soupDishes, ...otherDishes];
   for(let i=0; i<remaining; i++){
@@ -369,7 +366,6 @@ function randomMeal(){
     meal.push(pool.splice(idx, 1)[0]);
   }
 
-  // 记录已用
   meal.forEach(d => {
     usedIds.push({id:d.id, time:Date.now()});
   });
@@ -378,16 +374,18 @@ function randomMeal(){
   renderMealResult(meal);
 }
 
+// 配餐列表带序号
 function renderMealResult(meal){
   currentMealData = meal;
   let html = '<div style="padding:10px;"><h3>今日配餐</h3>';
   meal.forEach((d, idx) => {
     html += `
-      <div class="dish-item" style="display:flex;justify-content:space-between;align-items:center; margin-bottom:10px;">
+      <div class="dish-item" style="margin-bottom:10px;">
         <div>
+          <span>${idx+1}. </span>
           <b style="cursor:pointer;color:#07c160;" onclick="viewMealDishDetail(${idx})">${d.name}</b>
         </div>
-        <button onclick="changeMealDish(${idx})" class="btn-small">更换菜品</button>
+        <button onclick="openChangeModal(${idx})" class="btn-small">更换菜品</button>
       </div>
       <div class="ingredient-list" style="margin-left:10px;">
         ${d.ingredients ? d.ingredients.map((ing, i) => `
@@ -419,15 +417,60 @@ function toggleMealIngredient(checkbox){
   }
 }
 
-function changeMealDish(index){
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete)
-  const dishNames = dishes.map((d,i)=>`${i+1}. ${d.name}`).join('\n')
-  const selectedIdx = prompt(`请输入要更换的菜品序号：\n${dishNames}`)
-  if(!selectedIdx) return
-  const newDish = dishes[parseInt(selectedIdx)-1]
-  if(!newDish) return alert('无效序号')
-  currentMealData[index] = newDish
-  renderMealResult(currentMealData)
+// 更换菜品：弹窗+搜索（菜名/食材）
+function openChangeModal(index){
+  currentChangeMealIndex = index;
+  document.getElementById('changeDishModal').style.display = 'block';
+  document.getElementById('changeDishSearch').value = '';
+  renderChangeDishList('');
+}
+
+function closeChangeModal(){
+  document.getElementById('changeDishModal').style.display = 'none';
+  currentChangeMealIndex = null;
+}
+
+function renderChangeDishList(keyword){
+  keyword = keyword.toLowerCase().trim();
+  const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete);
+  const list = document.getElementById('changeDishList');
+  list.innerHTML = '';
+
+  const filterList = allDishes.filter(d=>{
+    if(!keyword) return true;
+    const nameMatch = d.name.toLowerCase().includes(keyword);
+    const ingMatch = d.ingredients && d.ingredients.some(ing=>ing.name.toLowerCase().includes(keyword));
+    return nameMatch || ingMatch;
+  });
+
+  filterList.forEach(d=>{
+    list.innerHTML += `
+      <div style="padding:6px 0; border-bottom:1px solid #eee; cursor:pointer;" onclick="selectChangeDish('${d.id}')">
+        ${d.name}
+      </div>
+    `;
+  })
+}
+
+// 监听更换菜品搜索
+document.addEventListener('DOMContentLoaded',function(){
+  const searchInput = document.getElementById('changeDishSearch');
+  if(searchInput){
+    searchInput.addEventListener('input',function(){
+      renderChangeDishList(this.value);
+    })
+  }
+})
+
+function selectChangeDish(dishId){
+  const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete);
+  const target = allDishes.find(d=>d.id === dishId);
+  if(!target) return;
+  if(currentChangeMealIndex !== null){
+    currentMealData[currentChangeMealIndex] = target;
+    renderMealResult(currentMealData);
+  }
+  closeChangeModal();
 }
 
 function manualMeal() {
@@ -462,7 +505,7 @@ function confirmManualMeal() {
   renderMealResult(selectedDishes)
 }
 
-// --- 回收站 ---
+// 回收站 30天还原
 function showRecycle(){
   const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>d.isDelete)
   const now = Date.now();
@@ -471,7 +514,7 @@ function showRecycle(){
   dishes.forEach(d=>{
     const dayDiff = (now - d.deleteTime) / (1000*60*60*24);
     const canRestore = dayDiff < expireDays;
-    html += `<div class="dish-item" style="display:flex;justify-content:space-between;align-items:center;">
+    html += `<div class="dish-item">
       <span>${d.name}（删除${Math.floor(dayDiff)}天）</span>
       <button onclick="restoreDish('${d.id}')" ${!canRestore ? 'disabled' : ''} class="btn-small">还原</button>
     </div>`
@@ -488,7 +531,7 @@ function restoreDish(id){
   showRecycle()
 }
 
-// --- 备份 ---
+// 备份导入
 function exportData(){
   const data = JSON.stringify({
     categories:JSON.parse(localStorage.getItem('categories')),
