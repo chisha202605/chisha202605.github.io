@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>家庭共享菜谱</title>
-  <link rel="stylesheet" href="style.css"/>
   <style>
     .ingredient-row { display: flex; gap: 10px; margin-bottom: 8px; }
     .ingredient-row input { flex: 1; }
@@ -13,6 +12,10 @@
     .btn-small { padding: 4px 8px; font-size: 12px; }
     .filter-section { margin: 10px 0; display: flex; gap: 10px; align-items: center; }
     .filter-section input { flex: 1; }
+    .page { padding: 10px; }
+    .hidden { display: none; }
+    .dish-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .detail-block { margin-bottom: 20px; }
   </style>
 </head>
 <body>
@@ -51,11 +54,13 @@
     <!-- 菜品详情页 -->
     <div id="page-detail" class="page hidden">
       <button onclick="showPage('home')">← 返回列表</button>
-      <h2 id="detailName"></h2>
-      <p id="detailCategory"></p>
-      <div id="detailIngredients"></div>
-      <div id="detailSteps"></div>
-      <div id="detailVideos"></div>
+      <div class="detail-block">
+        <h2 id="detailName"></h2>
+        <p id="detailCategory"></p>
+      </div>
+      <div class="detail-block" id="detailIngredients"></div>
+      <div class="detail-block" id="detailSteps"></div>
+      <div class="detail-block" id="detailVideos"></div>
       <button onclick="editCurrentDish()">编辑菜品</button>
     </div>
 
@@ -126,6 +131,14 @@
       <button onclick="exportData()">导出备份</button>
       <button onclick="importData()">导入备份</button>
       <div id="recycleList"></div>
+    </div>
+
+    <!-- 更换菜品搜索弹窗容器 -->
+    <div id="changeDishModal" style="display:none; position:fixed; top:20%; left:50%; transform:translateX(-50%); background:#fff; padding:20px; border:1px solid #ccc; z-index:999; width:320px;">
+      <h4>选择更换菜品</h4>
+      <input id="changeDishSearch" placeholder="搜索菜名/食材" style="width:100%; margin-bottom:10px;">
+      <div id="changeDishList" style="max-height:300px; overflow:auto;"></div>
+      <button onclick="closeChangeModal()" style="margin-top:10px;">关闭</button>
     </div>
   </div>
   <script src="app.js"></script>
