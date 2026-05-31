@@ -17,7 +17,7 @@
     .dish-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
     .detail-block { margin-bottom: 20px; }
 
-    /* 让分类不紧凑，拉开间距 */
+    /* 分类标签拉开间距 */
     .category-nav span {
       display: inline-block;
       margin: 5px 10px 5px 0;
@@ -43,10 +43,10 @@
       </div>
     </header>
 
-    <!-- 首页 -->
+    <!-- 首页：搜索框直接绑定oninput事件，确保筛选生效 -->
     <div id="page-home" class="page">
       <div class="filter-section">
-        <input id="searchKeyword" placeholder="搜索菜名/食材" />
+        <input id="searchKeyword" placeholder="搜索菜名/食材" oninput="renderDish()"/>
         <button onclick="showPage('categoryManage')">分类管理</button>
       </div>
       <div class="category-nav" id="categoryNav"></div>
@@ -149,7 +149,7 @@
     <!-- 更换菜品搜索弹窗容器 -->
     <div id="changeDishModal" style="display:none; position:fixed; top:20%; left:50%; transform:translateX(-50%); background:#fff; padding:20px; border:1px solid #ccc; z-index:999; width:320px;">
       <h4>选择更换菜品</h4>
-      <input id="changeDishSearch" placeholder="搜索菜名/食材" style="width:100%; margin-bottom:10px;">
+      <input id="changeDishSearch" placeholder="搜索菜名/食材" style="width:100%; margin-bottom:10px;" oninput="renderChangeDishList(this.value)">
       <div id="changeDishList" style="max-height:300px; overflow:auto;"></div>
       <button onclick="closeChangeModal()" style="margin-top:10px;">关闭</button>
     </div>
