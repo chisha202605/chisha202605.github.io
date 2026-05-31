@@ -18,6 +18,22 @@ function initData(){
 }
 initData()
 
+// 绑定首页搜索框实时筛选
+document.addEventListener('DOMContentLoaded', function(){
+  const searchInput = document.getElementById('searchKeyword');
+  if(searchInput){
+    searchInput.addEventListener('input', function(){
+      renderDish();
+    });
+  }
+  const changeSearch = document.getElementById('changeDishSearch');
+  if(changeSearch){
+    changeSearch.addEventListener('input', function(){
+      renderChangeDishList(this.value);
+    });
+  }
+});
+
 function showPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'))
   document.getElementById('page-'+name).classList.remove('hidden')
@@ -92,7 +108,7 @@ function delCategory(catId){
   alert('分类已删除')
 }
 
-// 首页菜品列表 + 序号 + 同行按钮 + 筛选修复
+// 首页菜品列表（修复筛选+序号+同行按钮）
 function renderDish(){
   const keyword = document.getElementById('searchKeyword').value.trim().toLowerCase()
   const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete)
@@ -100,13 +116,14 @@ function renderDish(){
   const list = document.getElementById('dishList')
   list.innerHTML = ''
 
+  // 多条件筛选：关键词（菜名/食材）+ 分类
   const filterList = dishes.filter(d=>{
     const matchKeyword = !keyword || 
-                         d.name.toLowerCase().includes(keyword) || 
-                         (d.ingredients && d.ingredients.some(ing => ing.name.toLowerCase().includes(keyword)))
-    const matchCategory = currentFilterCategory === null || d.cateId == currentFilterCategory
-    return matchKeyword && matchCategory
-  })
+      d.name.toLowerCase().includes(keyword) || 
+      (d.ingredients && d.ingredients.some(ing => ing.name.toLowerCase().includes(keyword)));
+    const matchCategory = currentFilterCategory === null || d.cateId == currentFilterCategory;
+    return matchKeyword && matchCategory;
+  });
 
   filterList.forEach((d, idx)=>{
     const catName = cats.find(c=>c.id==d.cateId)?.name||'未知分类'
@@ -125,7 +142,7 @@ function renderDish(){
   })
 }
 
-// 菜品详情页（空行分隔排版 + 正常读取食材）
+// 菜品详情页（空行分隔+正常显示食材）
 function viewDishDetail(id){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
   const d = dishes.find(x=>x.id===id)
@@ -417,7 +434,7 @@ function toggleMealIngredient(checkbox){
   }
 }
 
-// 更换菜品：弹窗+搜索（菜名/食材）
+// 更换菜品：弹窗+搜索（菜名/食材）【修复好的】
 function openChangeModal(index){
   currentChangeMealIndex = index;
   document.getElementById('changeDishModal').style.display = 'block';
@@ -430,6 +447,7 @@ function closeChangeModal(){
   currentChangeMealIndex = null;
 }
 
+// 更换菜品列表筛选（菜名/食材）
 function renderChangeDishList(keyword){
   keyword = keyword.toLowerCase().trim();
   const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete);
@@ -451,16 +469,6 @@ function renderChangeDishList(keyword){
     `;
   })
 }
-
-// 监听更换菜品搜索
-document.addEventListener('DOMContentLoaded',function(){
-  const searchInput = document.getElementById('changeDishSearch');
-  if(searchInput){
-    searchInput.addEventListener('input',function(){
-      renderChangeDishList(this.value);
-    })
-  }
-})
 
 function selectChangeDish(dishId){
   const allDishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete);
