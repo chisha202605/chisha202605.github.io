@@ -36,6 +36,9 @@ function showPage(name){
   if(name === 'categoryManage'){
     renderCategoryManage();
   }
+  if(name === 'meal'){
+    showMealHistory();
+  }
   if(name === 'addDish' && globalEditId === ""){
     resetAddDishForm();
   }
@@ -345,14 +348,13 @@ function deleteDish(id){
   renderDish()
 }
 
-// 配餐主逻辑（已修复过滤条件）
+// 【修复版】配餐主逻辑：确保所有记录都被追加存储
 function randomMeal(){
   const mealCount = parseInt(document.getElementById('mealCount').value) || 5;
   const minMeat = parseInt(document.getElementById('minMeat').value) || 0;
   const minSoup = parseInt(document.getElementById('minSoup').value) || 0;
   const noRepeatDays = parseInt(document.getElementById('noRepeatDays').value) || 3;
 
-  // 修复点：兼容没有 permanentDelete 字段的旧数据
   const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
   const usedIds = JSON.parse(localStorage.getItem('usedDishIds'))
   const validUsed = usedIds.filter(x=>Date.now() - x.time < noRepeatDays * 24 * 60 * 60 * 1000).map(x=>x.id)
@@ -388,7 +390,7 @@ function randomMeal(){
 
   renderMealResult(meal);
 
-  // 保存配餐历史记录
+  // 关键修复：始终追加新记录，不会覆盖旧记录
   let historyList = JSON.parse(localStorage.getItem('mealHistory'));
   historyList.unshift({
     id: Date.now(),
@@ -425,34 +427,37 @@ function renderMealResult(meal){
   document.getElementById('mealResult').innerHTML = html;
 }
 
-// 渲染配餐历史
+// 【修复版】渲染配餐历史：一次性渲染所有记录，不重复创建元素
 function showMealHistory(){
   let historyList = JSON.parse(localStorage.getItem('mealHistory'));
-  let html = '<div style="margin-top:20px;"><h4>配餐历史</h4>';
+  // 先清除旧的历史记录容器，避免重复渲染
+  let oldBlock = document.getElementById('mealHistoryBlock');
+  if(oldBlock) oldBlock.remove();
+
+  let html = '<div id="mealHistoryBlock" style="margin-top:20px;border-top:1px solid #eee;padding-top:15px;"><h3>配餐历史记录</h3>';
   if(historyList.length === 0){
     html += '<p>暂无配餐记录</p>';
   }else{
     historyList.forEach(item => {
       html += `
-        <div style="padding:6px 0;border-bottom:1px solid #eee;">
-          <span>${item.time}：${item.foods.join('、')}</span>
-          <button onclick="delMealHistory(${item.id})" style="margin-left:10px;">删除</button>
+        <div style="padding:8px 0;border-bottom:1px solid #eee;">
+          <div>时间：${item.time}</div>
+          <div>菜品：${item.foods.join('、')}</div>
+          <button class="btn-danger btn-small" onclick="delMealHistory(${item.id})">删除本条记录</button>
         </div>
       `;
     })
   }
   html += '</div>';
-  let mealBox = document.getElementById('mealResult');
-  mealBox.insertAdjacentHTML('beforeend', html);
+  document.getElementById('page-meal').insertAdjacentHTML('beforeend', html);
 }
 
-// 删除单条配餐历史
 function delMealHistory(recId){
   if(!confirm('确定删除该条记录？')) return;
   let historyList = JSON.parse(localStorage.getItem('mealHistory'));
   historyList = historyList.filter(item => item.id !== recId);
   localStorage.setItem('mealHistory', JSON.stringify(historyList));
-  location.reload();
+  showMealHistory();
 }
 
 function viewMealDishDetail(idx){
