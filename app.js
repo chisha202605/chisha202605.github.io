@@ -92,7 +92,7 @@ function delCategory(catId){
   alert('分类已删除')
 }
 
-// 首页菜品列表（修复筛选：菜名+食材双维度）
+// 首页菜品列表（筛选正常）
 function renderDish(){
   const keyword = document.getElementById('searchKeyword').value.trim().toLowerCase()
   const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete)
@@ -173,15 +173,21 @@ function viewDishDetail(id){
   showPage('detail')
 }
 
-// 编辑菜品（修复：确保editDishId被正确设置）
+// ========== 【核心修改区】编辑菜品逻辑 ==========
 function editDish(id){
   const dishes = JSON.parse(localStorage.getItem('dishes'))
   const d = dishes.find(x=>x.id===id)
-  if(!d) return
+  if(!d) return;
+
+  // 1. 强制标记为编辑模式
   document.getElementById('addEditTitle').innerText = '编辑菜品'
+  document.getElementById('editDishId').value = id; // 确保ID被写入
+
+  // 2. 填充基础信息
   document.getElementById('dishName').value = d.name
   document.getElementById('dishCategory').value = d.cateId || ''
   
+  // 3. 填充食材
   const ingList = document.getElementById('ingredientList');
   ingList.innerHTML = '';
   if(d.ingredients && d.ingredients.length > 0){
@@ -199,8 +205,10 @@ function editDish(id){
     addIngredientRow();
   }
 
+  // 4. 填充做法
   document.getElementById('dishStep').value = d.steps ? d.steps.join('\n') : '';
 
+  // 5. 填充视频
   const videoList = document.getElementById('videoList');
   videoList.innerHTML = '';
   if(d.videos && d.videos.length > 0){
@@ -217,8 +225,6 @@ function editDish(id){
     addVideoRow();
   }
 
-  // 强制设置编辑ID，确保保存时走更新逻辑
-  document.getElementById('editDishId').value = id
   showPage('addDish')
 }
 
@@ -283,7 +289,7 @@ function removeVideo(btn){
   }
 }
 
-// 保存菜品（修复：优先更新原菜品，不生成新菜）
+// ========== 【核心修改区】保存菜品逻辑 ==========
 function saveDish(){
   const name = document.getElementById('dishName').value.trim()
   const cateId = document.getElementById('dishCategory').value
@@ -340,7 +346,7 @@ function deleteDish(id){
   renderDish()
 }
 
-// 配餐
+// 配餐（未修改）
 function randomMeal(){
   const mealCount = parseInt(document.getElementById('mealCount').value) || 5;
   const minMeat = parseInt(document.getElementById('minMeat').value) || 0;
@@ -383,7 +389,6 @@ function randomMeal(){
   renderMealResult(meal);
 }
 
-// 配餐列表带序号
 function renderMealResult(meal){
   currentMealData = meal;
   let html = '<div style="padding:10px;"><h3>今日配餐</h3>';
@@ -426,7 +431,6 @@ function toggleMealIngredient(checkbox){
   }
 }
 
-// 更换菜品：弹窗+搜索
 function openChangeModal(index){
   currentChangeMealIndex = index;
   document.getElementById('changeDishModal').style.display = 'block';
@@ -504,7 +508,7 @@ function confirmManualMeal() {
   renderMealResult(selectedDishes)
 }
 
-// 回收站 30天还原
+// 回收站（未修改）
 function showRecycle(){
   const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>d.isDelete)
   const now = Date.now();
@@ -530,7 +534,7 @@ function restoreDish(id){
   showRecycle()
 }
 
-// 备份导入
+// 备份导入（未修改）
 function exportData(){
   const data = JSON.stringify({
     categories:JSON.parse(localStorage.getItem('categories')),
