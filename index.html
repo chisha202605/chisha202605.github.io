@@ -22,23 +22,44 @@
     <div id="page-home" class="page">
       <div class="search"><input id="searchInput" placeholder="搜索菜名/食材" oninput="renderDish()"/></div>
       <div class="category-nav" id="categoryNav"></div>
+      <div style="margin:10px 0;">
+        <button onclick="showPage('categoryManage')">分类管理</button>
+      </div>
       <div class="dish-list" id="dishList"></div>
+    </div>
+
+    <!-- 分类管理页面 -->
+    <div id="page-categoryManage" class="page hidden">
+      <button onclick="showPage('home')">← 返回首页</button>
+      <h2>分类管理</h2>
+      <div style="margin:15px 0;">
+        <input id="newCateName" placeholder="输入新分类名称" style="width:200px;">
+        <button onclick="addCategory()">新增分类</button>
+      </div>
+      <div id="cateManageList"></div>
+    </div>
+
+    <!-- 菜品详情页 -->
+    <div id="page-detail" class="page hidden">
+      <button onclick="showPage('home')">← 返回列表</button>
+      <h2 id="detailName"></h2>
+      <p id="detailCategory"></p>
+      <div id="detailIngredients"></div>
+      <div id="detailSteps"></div>
+      <div id="detailVideos"></div>
+      <button onclick="editCurrentDish()">编辑菜品</button>
     </div>
 
     <!-- 新增/编辑菜品 -->
     <div id="page-addDish" class="page hidden">
-      <h2>新增菜品</h2>
+      <h2 id="addEditTitle">新增菜品</h2>
       <div class="form">
         <input id="dishName" placeholder="菜名"/>
         <select id="dishCategory"></select>
-        <select id="dishDiff">
-          <option>简单</option><option>中等</option><option>困难</option>
-        </select>
-        <input id="dishTime" placeholder="烹饪耗时"/>
-        <input id="dishPeople" placeholder="适合人数"/>
         <textarea id="dishIng" placeholder="食材：名称+用量，换行分隔"></textarea>
         <textarea id="dishStep" placeholder="详细做法"></textarea>
-        <input id="dishVideo" placeholder="视频链接，多个换行"/>
+        <textarea id="dishVideo" placeholder="视频链接，多个链接请用回车换行分隔"></textarea>
+        <input type="hidden" id="editDishId">
         <button onclick="saveDish()">保存菜品</button>
       </div>
     </div>
@@ -49,7 +70,6 @@
       <button onclick="randomMeal()">随机4菜1汤（3天不重复，含荤菜）</button>
       <button onclick="manualMeal()">手动选菜配餐</button>
       <div id="mealResult" class="meal-result"></div>
-      <div id="ingredientCheck" class="ingredient-check"></div>
     </div>
 
     <!-- 个人中心 -->
