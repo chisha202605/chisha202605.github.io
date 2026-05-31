@@ -348,15 +348,17 @@ function deleteDish(id){
   renderDish()
 }
 
-// 配餐主逻辑
+// 随机配餐
 function randomMeal(){
   const mealCount = parseInt(document.getElementById('mealCount').value) || 5;
   const minMeat = parseInt(document.getElementById('minMeat').value) || 0;
   const minSoup = parseInt(document.getElementById('minSoup').value) || 0;
   const noRepeatDays = parseInt(document.getElementById('noRepeatDays').value) || 3;
 
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>!d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
-  const usedIds = JSON.parse(localStorage.getItem('usedDishIds'))
+  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>{
+    return !d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete);
+  });
+  const usedIds = JSON.parse(localStorage.getItem('usedDishIds') || '[]')
   const validUsed = usedIds.filter(x=>Date.now() - x.time < noRepeatDays * 24 * 60 * 60 * 1000).map(x=>x.id)
 
   const meatDishes = dishes.filter(d=>d.cateId == 2 && !validUsed.includes(d.id));
@@ -390,15 +392,19 @@ function randomMeal(){
 
   renderMealResult(meal);
 
-  // 保存配餐历史记录
-  let historyList = JSON.parse(localStorage.getItem('mealHistory'));
-  historyList.unshift({
-    id: Date.now(),
-    time: new Date().toLocaleString(),
-    foods: meal.map(d => d.name)
-  });
-  localStorage.setItem('mealHistory', JSON.stringify(historyList));
-  showMealHistory();
+  try {
+    let historyList = JSON.parse(localStorage.getItem('mealHistory') || '[]');
+    historyList.unshift({
+      id: Date.now(),
+      time: new Date().toLocaleString(),
+      foods: meal.map(d => d.name)
+    });
+    if (historyList.length > 50) historyList = historyList.slice(0, 50);
+    localStorage.setItem('mealHistory', JSON.stringify(historyList));
+    showMealHistory();
+  } catch (e) {
+    alert('保存记录失败，存储空间不足，请删除部分旧记录');
+  }
 }
 
 function renderMealResult(meal){
@@ -428,7 +434,7 @@ function renderMealResult(meal){
 }
 
 function showMealHistory(){
-  let historyList = JSON.parse(localStorage.getItem('mealHistory'));
+  let historyList = JSON.parse(localStorage.getItem('mealHistory') || '[]');
   let oldBlock = document.getElementById('mealHistoryBlock');
   if(oldBlock) oldBlock.remove();
 
@@ -452,7 +458,7 @@ function showMealHistory(){
 
 function delMealHistory(recId){
   if(!confirm('确定删除该条记录？')) return;
-  let historyList = JSON.parse(localStorage.getItem('mealHistory'));
+  let historyList = JSON.parse(localStorage.getItem('mealHistory') || '[]');
   historyList = historyList.filter(item => item.id !== recId);
   localStorage.setItem('mealHistory', JSON.stringify(historyList));
   showMealHistory();
@@ -519,8 +525,10 @@ function selectChangeDish(dishId){
   closeChangeModal();
 }
 
+// 手动选菜入口
 function manualMeal() {
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d => !d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
+  const dishes = JSON.parse(localStorage.getItem('dishes') || '[]')
+    .filter(d => !d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
   let html = `
     <div style="padding:10px;">
       <h3>自由选菜（无限制）</h3>
@@ -544,25 +552,43 @@ function manualMeal() {
   document.getElementById('mealResult').innerHTML = html
 }
 
-// 【修复版】手动选菜配餐：新增历史记录保存逻辑
+// 【最终修复】手动配餐 保存历史+限制条数+异常捕获
 function confirmManualMeal() {
   const checkboxes = document.querySelectorAll('#manual-dish-list input:checked')
   const selectedIds = Array.from(checkboxes).map(cb => cb.value)
-  const selectedDishes = JSON.parse(localStorage.getItem('dishes')).filter(d => selectedIds.includes(d.id))
-  if(selectedDishes.length === 0) return alert('请至少选择一道菜品')
+  const selectedDishes = JSON.parse(localStorage.getItem('dishes') || '[]')
+    .filter(d => selectedIds.includes(d.id))
 
-  // 渲染今日配餐
+  if (selectedDishes.length === 0) {
+    alert('请至少选择一道菜品')
+    return
+  }
+
   renderMealResult(selectedDishes);
 
-  // 保存配餐历史记录
-  let historyList = JSON.parse(localStorage.getItem('mealHistory'));
-  historyList.unshift({
-    id: Date.now(),
-    time: new Date().toLocaleString(),
-    foods: selectedDishes.map(d => d.name)
-  });
-  localStorage.setItem('mealHistory', JSON.stringify(historyList));
-  showMealHistory();
+  try {
+    // 保存历史记录，最多保留50条
+    let historyList = JSON.parse(localStorage.getItem('mealHistory') || '[]');
+    historyList.unshift({
+      id: Date.now(),
+      time: new Date().toLocaleString(),
+      foods: selectedDishes.map(d => d.name)
+    });
+    if (historyList.length > 50) historyList = historyList.slice(0, 50);
+    localStorage.setItem('mealHistory', JSON.stringify(historyList));
+
+    // 同步记录已使用菜品（和随机配餐规则一致）
+    let usedIds = JSON.parse(localStorage.getItem('usedDishIds') || '[]');
+    selectedDishes.forEach(d => {
+      usedIds.push({ id: d.id, time: Date.now() });
+    });
+    localStorage.setItem('usedDishIds', JSON.stringify(usedIds));
+
+    showMealHistory();
+  } catch (e) {
+    console.error(e);
+    alert('保存失败：本地存储空间已满，请先删除部分旧配餐记录');
+  }
 }
 
 // 回收站
@@ -628,7 +654,7 @@ function importData(){
       alert('导入成功')
       showPage('home')
     }
-    fr.readAsText(e.target.result)
+    fr.readAsText(e.target.files[0])
   }
   input.click()
 }
