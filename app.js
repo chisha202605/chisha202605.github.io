@@ -388,9 +388,10 @@ function randomMeal(){
   });
   localStorage.setItem('usedDishIds', JSON.stringify(usedIds));
 
+  // 渲染今日配餐
   renderMealResult(meal);
 
-  // 关键修复：始终追加新记录，不会覆盖旧记录
+  // 保存配餐历史记录
   let historyList = JSON.parse(localStorage.getItem('mealHistory'));
   historyList.unshift({
     id: Date.now(),
@@ -398,9 +399,12 @@ function randomMeal(){
     foods: meal.map(d => d.name)
   });
   localStorage.setItem('mealHistory', JSON.stringify(historyList));
+
+  // 渲染配餐历史
   showMealHistory();
 }
 
+// 【修复版】渲染今日配餐：直接渲染到mealResult容器
 function renderMealResult(meal){
   currentMealData = meal;
   let html = '<div style="padding:10px;"><h3>今日配餐</h3>';
@@ -449,7 +453,7 @@ function showMealHistory(){
     })
   }
   html += '</div>';
-  document.getElementById('page-meal').insertAdjacentHTML('beforeend', html);
+  document.getElementById('mealResult').insertAdjacentHTML('beforeend', html);
 }
 
 function delMealHistory(recId){
@@ -555,7 +559,8 @@ function confirmManualMeal() {
 
 // 回收站
 function showRecycle(){
-  const dishes = JSON.parse(localStorage.getItem('dishes')).filter(d=>d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
+  const dishesJSON = JSON.parse(localStorage.getItem('dishes'));
+  const dishes = dishesJSON.filter(d=>d.isDelete && (d.permanentDelete === undefined || !d.permanentDelete))
   const now = Date.now();
   const expireDays = 30;
   let html = ''
